@@ -1,15 +1,15 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/SSDsim.dir/initialize.c.o"
-  "CMakeFiles/SSDsim.dir/avlTree.c.o"
-  "CMakeFiles/SSDsim.dir/flash.c.o"
-  "CMakeFiles/SSDsim.dir/pagemap.c.o"
-  "CMakeFiles/SSDsim.dir/ssd.c.o"
-  "SSDsim.pdb"
-  "SSDsim.exe"
-  "libSSDsim.dll.a"
-)
+        "CMakeFiles/SSDsim.dir/initialize.c.o"
+        "CMakeFiles/SSDsim.dir/avlTree.c.o"
+        "CMakeFiles/SSDsim.dir/flash.c.o"
+        "CMakeFiles/SSDsim.dir/pagemap.c.o"
+        "CMakeFiles/SSDsim.dir/ssd.c.o"
+        "SSDsim.pdb"
+        "SSDsim.exe"
+        "libSSDsim.dll.a"
+        )
 
 # Per-language clean rules from dependency scanning.
-foreach(lang C)
-  include(CMakeFiles/SSDsim.dir/cmake_clean_${lang}.cmake OPTIONAL)
-endforeach()
+foreach (lang C)
+    include(CMakeFiles/SSDsim.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach ()

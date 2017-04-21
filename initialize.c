@@ -180,10 +180,10 @@ struct ssd_info *initiation(struct ssd_info *ssd) {
     return ssd;
 }
 
-struct nvm_info *initialize_nvm(struct ssd_info *ssd){
+struct nvm_info *initialize_nvm(struct ssd_info *ssd) {
     struct nvm_info *nvm = ssd->nvm_head;
     nvm->size = ssd->parameter->nvm_capacity;
-    nvm->nvmpage_head = (struct nvmpage_info *)malloc(sizeof(struct nvmpage_info) * ssd->parameter->nvmpage_num);
+    nvm->nvmpage_head = (struct nvmpage_info *) malloc(sizeof(struct nvmpage_info) * ssd->parameter->nvmpage_num);
     memset(nvm->nvmpage_head, 0, sizeof(struct nvmpage_info) * ssd->parameter->nvmpage_num);
     return nvm;
 }
