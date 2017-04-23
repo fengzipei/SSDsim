@@ -91,15 +91,19 @@ struct local *find_location(struct ssd_info *ssd, unsigned int ppn) {
     /*******************************************************************************
 	*page_channel是一个channel中page的数目， ppn/page_channel就得到了在哪个channel中
 	*用同样的办法可以得到chip，die，plane，block，page
+     * 如果这个ppn是在nvm区域，将这个location设为nvm中的位置
 	********************************************************************************/
-    location->channel = ppn / page_channel;
-    location->chip = (ppn % page_channel) / page_chip;
-    location->die = ((ppn % page_channel) % page_chip) / page_die;
-    location->plane = (((ppn % page_channel) % page_chip) % page_die) / page_plane;
-    location->block = ((((ppn % page_channel) % page_chip) % page_die) % page_plane) / ssd->parameter->page_block;
-    location->page = (((((ppn % page_channel) % page_chip) % page_die) % page_plane) % ssd->parameter->page_block) %
-                     ssd->parameter->page_block;
-
+    if(ppn < ssd->parameter->nvmpage_num){
+        location->pageinnvm = ppn;
+    } else {
+        location->channel = ppn / page_channel;
+        location->chip = (ppn % page_channel) / page_chip;
+        location->die = ((ppn % page_channel) % page_chip) / page_die;
+        location->plane = (((ppn % page_channel) % page_chip) % page_die) / page_plane;
+        location->block = ((((ppn % page_channel) % page_chip) % page_die) % page_plane) / ssd->parameter->page_block;
+        location->page = (((((ppn % page_channel) % page_chip) % page_die) % page_plane) % ssd->parameter->page_block) %
+                         ssd->parameter->page_block;
+    }
     return location;
 }
 
@@ -151,7 +155,7 @@ int set_entry_state(struct ssd_info *ssd, unsigned int lsn, unsigned int size) {
     int temp, state, move;
 
     temp = ~(0xffffffff << size);
-    move = lsn % ssd->parameter->subpage_page;
+    move = lsn % ssd->parameter->subpage_page; //页内的sector位置
     state = temp << move;
 
     return state;
@@ -226,17 +230,19 @@ struct ssd_info *pre_process_page(struct ssd_info *ssd) {
                 if (ssd->dram->map->map_entry[lpn].state == 0)                 /*状态为0的情况*/
                 {
                     //当nvm中还有空间时，优先从nvm上分配物理页
+                    //物理页号是顺序分配的
                     if (position < largest_nvm_position) {
                         ppn = position;
                         ssd->program_count++;
                         ssd->nvm_head->nvmpage_head[ppn].written_count++;
                         ssd->nvm_head->write_count++;
+                        ssd->nvm_head->size++;
                         ssd->dram->map->map_entry[lpn].pn = ppn;
                         ssd->dram->map->map_entry[lpn].state = set_entry_state(ssd, lsn, sub_size);
                         ssd->nvm_head->nvmpage_head[ppn].lpn = lpn;
                         ssd->nvm_head->nvmpage_head[ppn].valid_state = ssd->dram->map->map_entry[lpn].state;
                         ssd->nvm_head->nvmpage_head[ppn].free_state = ((~ssd->dram->map->map_entry[lpn].state) &
-                                                                       full_page);;
+                                                                       full_page);
                         position++;
                     } else {
                         /**************************************************************
@@ -412,7 +418,7 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn) {
     if (write_page(ssd, channel, chip, die, plane, active_block, &ppn) == ERROR) {
         return 0;
     }
-    //bias = nvmpage size * nvmpage num
+
     return ppn + ssd->parameter->nvmpage_num;
 }
 

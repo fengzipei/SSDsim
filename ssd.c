@@ -287,7 +287,7 @@ int get_requests(struct ssd_info *ssd) {
  *  2. 用于维护LRU结构的双向链表
  *  3. 用于维护已写回的lsn的written链表
  *
- *  当dram不能完成请求时，需要把请求挂在相应的队列上
+ *  当dram不能完成请求时，如果是对于flash的请求，需要把请求挂在相应的队列上，如果是对nvm的请求，处理完，改完时间直接返回
  *  因为现在实现的是动态分配的情况，只需要将未处理的请求挂在ssd的subrequest上即可
  *
  ***********************************************************************************************************************************************/
@@ -321,7 +321,7 @@ struct ssd_info *buffer_management(struct ssd_info *ssd) {
         while (lpn <= last_lpn) {
             /************************************************************************************************
              *need_distb_flag表示是否需要执行distribution函数，1表示需要执行，buffer中没有，0表示不需要执行
-             *即1表示需要分发，0表示不需要分发，对应点初始全部赋为1
+             *即1表示需要分发，0表示不需要分发，对应点初始全部赋为1，若需要distribute，将相应位置为1
             *************************************************************************************************/
             need_distb_flag = full_page;
             key.group = lpn;
@@ -340,7 +340,7 @@ struct ssd_info *buffer_management(struct ssd_info *ssd) {
                     lsn_flag = lsn_flag & (~mask);
                 }
 
-                if (flag == 1) {    //如果该buffer节点不在buffer的队首，需要将这个节点提到队首，实现了LRU算法，这个是一个双向队列。
+                if (flag == 1) {    //命中buffer，如果该buffer节点不在buffer的队首，需要将这个节点提到队首，实现了LRU算法，这个是一个双向队列。
                     if (ssd->dram->buffer->buffer_head != buffer_node) {
                         if (ssd->dram->buffer->buffer_tail == buffer_node) {
                             buffer_node->LRU_link_pre->LRU_link_next = NULL;

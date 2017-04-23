@@ -152,7 +152,8 @@ struct ac_time_characteristics {
 
 
 struct nvmpage_info {
-    int valid_state;
+    int valid; //
+    int valid_state; //每个bit表示该位置的sector是否有效
     int free_state;
     unsigned int lpn;
     unsigned int written_count;
@@ -160,7 +161,7 @@ struct nvmpage_info {
 };
 
 struct nvm_info {
-    int size; //unit is B
+    int size; //number of valid page in nvm
     unsigned int read_count;
     unsigned int write_count;
     struct nvmpage_info *nvmpage_head;
@@ -495,6 +496,8 @@ struct entry {
 
 
 struct local {
+    unsigned int blockinnvm;
+    unsigned int pageinnvm;
     unsigned int channel;
     unsigned int chip;
     unsigned int die;

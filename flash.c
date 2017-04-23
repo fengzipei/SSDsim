@@ -22,6 +22,7 @@ Hao Luo         2011/01/01        2.0           Change               luohao13568
 /**********************
 *这个函数只作用于写请求
 ***********************/
+//这个函数对subrequest进行处理，为其分配一些参数，为其分配一个位置
 Status allocate_location(struct ssd_info *ssd, struct sub_request *sub_req) {
     struct sub_request *update = NULL;
     unsigned int channel_num = 0, chip_num = 0, die_num = 0, plane_num = 0;
@@ -246,6 +247,26 @@ Status allocate_location(struct ssd_info *ssd, struct sub_request *sub_req) {
     return SUCCESS;
 }
 
+//这个函数尝试将写请求让nvm完成，成功时返回1，失败返回0；
+//要在这个函数中完成时间计算
+int write2nvm(struct ssd_info *ssd, int lpn, int size) {
+    //1.是否nvm剩余空间大于size
+    if(ssd->nvm_head->size + size > ssd->parameter->nvmpage_num){
+        return 0;
+    }
+    //2.写入(修改映射关系)
+    while(size){
+        int i;
+        for(i = 0; i < ssd->parameter->nvmpage_num; i++){
+            if(ssd->nvm_head->nvmpage_head[i].valid_state)
+        }
+    }
+    //3.修改时间消耗 TODO
+
+
+    return 1;
+}
+
 
 /*******************************************************************************
 *insert2buffer这个函数是专门为写请求分配子请求服务的在buffer_management中被调用。
@@ -268,7 +289,7 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
     key.group = lpn;
     buffer_node = (struct buffer_group *) avlTreeFind(ssd->dram->buffer,
                                                       (TREE_NODE *) &key);    /*在平衡二叉树中寻找buffer node*/
-
+    //这里没有命中的意思是这个数据是append写
     /************************************************************************************************
 	*没有命中。
 	*第一步根据这个lpn有多少子页需要写到buffer，去除已写回的lsn，为该lpn腾出位置，
@@ -289,7 +310,6 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
                 sub_req_state = ssd->dram->buffer->buffer_tail->stored;
                 sub_req_size = size(ssd->dram->buffer->buffer_tail->stored);
                 sub_req_lpn = ssd->dram->buffer->buffer_tail->group;
-                sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
 
                 /**********************************************************************************
 				*req不为空，表示这个insert2buffer函数是在buffer_management中调用，传递了request进来
@@ -298,7 +318,17 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
 				*这个读请求的总请求上
 				***********************************************************************************/
                 if (req != NULL) {
+                    //没有命中buffer，需要在buffer中腾出空间给写请求
+                    //在这里截断写请求，如果nvm没有满，就不用创建对flash的subrequest
+                    //这里create_sub_request()函数的作用是将创建一个写子请求挂在请求的队列后，本质是给lpn分配一个位置
+                    //输入为lpn，size，state，输出为是否成功（1/0），可以直接在这里计算时间
+                    //如果nvm不能完成请求，就让flash去完成
+                    //原来的代码是在实际操作的时候修改map映射关系，我需要在这个函数中修改掉映射关系
+                    if (!write2nvm(ssd, sub_req_lpn, sub_req_size)) {
+                        sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
+                    }
                 } else {
+                    sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
                     sub_req->next_subs = sub->next_subs;
                     sub->next_subs = sub_req;
                 }
@@ -307,7 +337,8 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
 				*写请求插入到了平衡二叉树，这时就要修改dram的buffer_sector_count；
 				*维持平衡二叉树调用avlTreeDel()和AVL_TREENODE_FREE()函数；维持LRU算法；
 				**********************************************************************/
-                ssd->dram->buffer->buffer_sector_count = ssd->dram->buffer->buffer_sector_count - sub_req->size;
+                //这里sub_req->size就是sub_req_size，不知道作者为何要这样写
+                ssd->dram->buffer->buffer_sector_count = ssd->dram->buffer->buffer_sector_count - sub_req_size);
                 pt = ssd->dram->buffer->buffer_tail;
                 avlTreeDel(ssd->dram->buffer, (TREE_NODE *) pt);
                 if (ssd->dram->buffer->buffer_head->LRU_link_next == NULL) {
