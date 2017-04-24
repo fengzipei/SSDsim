@@ -309,7 +309,7 @@ struct page_info {                      //lpn记录该物理页存储的逻辑�
     int free_state;                    //each bit indicates the subpage is free or occupted. 1 indicates that the bit is free and 0 indicates that the bit is used
     unsigned int lpn;
     unsigned int written_count;        //记录该页被写的次数
-    unsigned int read_count;            //added by fzp
+    unsigned int access_count;            //统计每个页被访问的次数，超过一定数量就迁移数据
 };
 
 

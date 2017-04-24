@@ -247,24 +247,45 @@ Status allocate_location(struct ssd_info *ssd, struct sub_request *sub_req) {
     return SUCCESS;
 }
 
-//这个函数尝试将写请求让nvm完成，成功时返回1，失败返回0；
-//要在这个函数中完成时间计算
-int write2nvm(struct ssd_info *ssd, int lpn, int size) {
-    //1.是否nvm剩余空间大于size
-    if(ssd->nvm_head->size + size > ssd->parameter->nvmpage_num){
-        return 0;
-    }
-    //2.写入(修改映射关系)
-    while(size){
-        int i;
-        for(i = 0; i < ssd->parameter->nvmpage_num; i++){
-            if(ssd->nvm_head->nvmpage_head[i].valid_state)
+//这个函数的功能是从nvm中找到一个空的page，并返回这个空的page的ppn，如果不能找到，返回-1
+int allocatefromnvm(struct ssd_info *ssd){
+    int i;
+    for(i = 0; i < ssd->parameter->nvmpage_num; i++){
+        if(ssd->nvm_head->nvmpage_head[i].valid_state == 0){
+            return i;
         }
     }
-    //3.修改时间消耗 TODO
+    return -1;
+}
 
-
-    return 1;
+//这个函数尝试将写请求让nvm完成，成功时返回1，失败返回0；
+//是将buffer tail节点的数据写回，若在nvm中，直接替换，若不在nvm中且nvm中空间有剩余，插入nvm，若不在nvm中且nvm空间满了，返回0
+//要在这个函数中完成时间计算
+//输入的state代表该node中需要写入的那些subpage，size代表有多少个subpage
+//buggy code
+//todo
+int write2nvm(struct ssd_info *ssd, int lpn, int state, int size) {
+    int ppn = ssd->dram->map->map_entry[lpn].pn;
+    if(ppn != -1 && ppn < ssd->parameter->nvmpage_num){
+        //在nvm中，直接写入
+        ssd->nvm_head->nvmpage_head[ppn].valid_state = state;
+        ssd->nvm_head->nvmpage_head[ppn].written_count++;
+        //todo time consumed
+        return 1;
+    } else {
+        int allocatedppn = allocatefromnvm(ssd);
+        if(allocatedppn == -1){
+            return 0;
+        } else {
+            ssd->dram->map->map_entry[lpn].pn = allocatedppn;
+            ssd->dram->map->map_entry[lpn].state = state;
+            ssd->nvm_head->nvmpage_head[allocatedppn].valid_state = state;
+            ssd->nvm_head->nvmpage_head[allocatedppn].written_count++;
+            ssd->nvm_head->nvmpage_head[allocatedppn].lpn = lpn;
+            //todo time consumed
+            return 1;
+        }
+    }
 }
 
 
@@ -289,7 +310,7 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
     key.group = lpn;
     buffer_node = (struct buffer_group *) avlTreeFind(ssd->dram->buffer,
                                                       (TREE_NODE *) &key);    /*在平衡二叉树中寻找buffer node*/
-    //这里没有命中的意思是这个数据是append写
+
     /************************************************************************************************
 	*没有命中。
 	*第一步根据这个lpn有多少子页需要写到buffer，去除已写回的lsn，为该lpn腾出位置，
@@ -324,7 +345,8 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
                     //输入为lpn，size，state，输出为是否成功（1/0），可以直接在这里计算时间
                     //如果nvm不能完成请求，就让flash去完成
                     //原来的代码是在实际操作的时候修改map映射关系，我需要在这个函数中修改掉映射关系
-                    if (!write2nvm(ssd, sub_req_lpn, sub_req_size)) {
+                    //todo 这里如果写nvm成功时需要对req进行处理
+                    if (!write2nvm(ssd, sub_req_lpn, sub_req_state, sub_req_size)) {
                         sub_req = creat_sub_request(ssd, sub_req_lpn, sub_req_size, sub_req_state, req, WRITE);
                     }
                 } else {
@@ -590,6 +612,7 @@ creat_sub_request(struct ssd_info *ssd, unsigned int lpn, int size, unsigned int
 	*有的话，新子请求就不必再执行了，将新的子请求直接赋为完成
 	**************************************************************************************/
     if (operation == READ) {
+        //todo
         loc = find_location(ssd, ssd->dram->map->map_entry[lpn].pn);
         sub->location = loc;
         sub->begin_time = ssd->current_time;
@@ -1519,6 +1542,8 @@ struct ssd_info *process(struct ssd_info *ssd) {
             }
 
             sub = ssd->channel_head[i].subs_r_head;                                        /*先处理读请求*/
+            //这个函数处理读请求，在这里面进行数据迁移
+            //数据迁移的意思就是：将这两个page中的数据替换掉，模拟器中的体现就是修改相应的map，state
             services_2_r_wait(ssd, i, &flag, &chg_cur_time_flag);                           /*处理处于等待状态的读子请求*/
 
             if ((flag == 0) && (ssd->channel_head[i].subs_r_head !=

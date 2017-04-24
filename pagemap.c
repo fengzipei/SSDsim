@@ -103,6 +103,8 @@ struct local *find_location(struct ssd_info *ssd, unsigned int ppn) {
         location->block = ((((ppn % page_channel) % page_chip) % page_die) % page_plane) / ssd->parameter->page_block;
         location->page = (((((ppn % page_channel) % page_chip) % page_die) % page_plane) % ssd->parameter->page_block) %
                          ssd->parameter->page_block;
+        ssd->channel_head[location->channel].chip_head[location->chip].die_head[location->die].\
+        plane_head[location->plane].blk_head[location->block].page_head[location->page].access_count++;
     }
     return location;
 }

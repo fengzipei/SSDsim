@@ -431,6 +431,16 @@ unsigned int lpn2ppn(struct ssd_info *ssd, unsigned int lsn) {
 *不同的channel有自己的子请求队列
 **********************************************************************************/
 
+//尝试从nvm中读取数据，成功就返回1， 失败就返回0
+int readfromnvm(struct ssd_info *ssd, int lpn, int sub_size){
+    if(ssd->dram->map->map_entry[lpn].pn < ssd->parameter->nvmpage_num){
+        //todo 对应的ppn在nvm中，需要更改时间消耗
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
 struct ssd_info *distribute(struct ssd_info *ssd) {
     unsigned int start, end, first_lsn, last_lsn, lpn, flag = 0, flag_attached = 0, full_page;
     unsigned int j, k, sub_size;
@@ -479,7 +489,11 @@ struct ssd_info *distribute(struct ssd_info *ssd) {
                             if (sub_size == 0) {
                                 continue;
                             } else {
-                                sub = creat_sub_request(ssd, lpn, sub_size, 0, req, req->operation);
+                                //在这里再次分配写请求，拦截对nvm的写，并统计相应的时间
+                                //todo 这里需要处理req
+                                if(!readfromnvm(ssd, lpn, sub_size)){
+                                    sub = creat_sub_request(ssd, lpn, sub_size, 0, req, req->operation);
+                                }
                             }
                         }
                     }
