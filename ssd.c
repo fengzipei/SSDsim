@@ -811,6 +811,7 @@ void statistic_output(struct ssd_info *ssd) {
 
 /***********************************************************************************
 *根据每一页的状态计算出每一需要处理的子页的数目，也就是一个子请求需要处理的子页的页数
+ * 这个函数统计state中1的bit个数，即一个page中有效子页的个数
 ************************************************************************************/
 unsigned int size(unsigned int stored) {
     unsigned int i, total = 0, mask = 0x80000000;
@@ -1031,6 +1032,7 @@ struct ssd_info *no_buffer_distribute(struct ssd_info *ssd) {
         while (lpn <= last_lpn) {
             mask = ~(0xffffffff << (ssd->parameter->subpage_page));
             state = mask;
+            //这里对第一个lpn和最后一个lpn做处理的原因是不能修改未请求的数据
             if (lpn == first_lpn) {
                 offset1 = ssd->parameter->subpage_page - ((lpn + 1) * ssd->parameter->subpage_page - req->lsn);
                 state = state & (0xffffffff << offset1);

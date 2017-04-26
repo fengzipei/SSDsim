@@ -428,6 +428,7 @@ unsigned int get_ppn_for_pre_process(struct ssd_info *ssd, unsigned int lsn) {
 /***************************************************************************************************
 *函数功能是在所给的channel，chip，die，plane里面找到一个active_block然后再在这个block里面找到一个页，
 *再利用find_ppn找到ppn。
+ * 该函数的功能是在给定的plane中找到一个active block的free page给子请求写入
 ****************************************************************************************************/
 struct ssd_info *
 get_ppn(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane,
@@ -1318,7 +1319,6 @@ unsigned int gc(struct ssd_info *ssd, unsigned int channel, unsigned int flag) {
     int flag_direct_erase = 1, flag_gc = 1, flag_invoke_gc = 1;
     unsigned int flag_priority = 0;
     struct gc_operation *gc_node = NULL, *gc_p = NULL;
-
     if (flag == 1)                                                                       /*整个ssd都是IDEL的情况*/
     {
         for (i = 0; i < ssd->parameter->channel_number; i++) {
@@ -1338,7 +1338,6 @@ unsigned int gc(struct ssd_info *ssd, unsigned int channel, unsigned int flag) {
             }
         }
         return SUCCESS;
-
     } else                                                                               /*只需针对某个特定的channel，chip，die进行gc请求的操作(只需对目标die进行判定，看是不是idle）*/
     {
         if ((ssd->parameter->allocation_scheme == 1) ||
@@ -1349,7 +1348,6 @@ unsigned int gc(struct ssd_info *ssd, unsigned int channel, unsigned int flag) {
                 return 0;
             }
         }
-
         gc_for_channel(ssd, channel);
         return SUCCESS;
     }

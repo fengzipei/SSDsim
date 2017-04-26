@@ -533,6 +533,7 @@ insert2buffer(struct ssd_info *ssd, unsigned int lpn, int state, struct sub_requ
 
 /**************************************************************************************
 *函数的功能是寻找活跃快，应为每个plane中都只有一个活跃块，只有这个活跃块中才能进行操作
+ * active_block的标准就是块中的free page数不为0的块
 ***************************************************************************************/
 Status
 find_active_block(struct ssd_info *ssd, unsigned int channel, unsigned int chip, unsigned int die, unsigned int plane) {
